@@ -118,6 +118,20 @@ public struct LineParser: Sendable {
     // MARK: - Event queue (events waiting to be delivered one per feed() call)
     private var eventQueue: [ParseEvent] = []
 
+    /// The number of events currently held in internal buffers, waiting to be delivered
+    /// by future ``feed(_:)`` or ``flush()`` calls.
+    ///
+    /// Used by ``TrackingLineParser`` to compute exact source-line attribution without
+    /// observing private state directly.
+    var pendingEventCount: Int {
+        // Events produced by earlier lines but not yet returned, because feed() can only
+        // deliver one result per call. They will be returned on future feed() calls (Path A).
+        let queued = eventQueue.count
+        // A recorded-issue line held for look-ahead will produce exactly one future event.
+        let bufferedLookAhead = pendingRecordedIssueLine != nil ? 1 : 0
+        return queued + bufferedLookAhead
+    }
+
     /// Creates a new `LineParser`.
     ///
     /// - Parameter xcbeautify: Pass `true` when the input was pre-processed by xcbeautify or Tuist.
